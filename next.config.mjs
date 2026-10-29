@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
@@ -21,11 +21,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' data: https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://*.cloudflarecaptcha.com https://hagen.challenges.cloudflare.com https://brunhild.challenges.cloudflare.com https://*.alg13.dnstest.challenges.cloudflare.com https://*.mldsa44.dnstest.challenges.cloudflare.com https://dnstest.dev https://ca1.cloudflarecaptcha.com https://ca2.cloudflarecaptcha.com",
-      "frame-src 'self' https://challenges.cloudflare.com",
+      "connect-src 'self' data: blob: https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://*.cloudflarecaptcha.com https://hagen.challenges.cloudflare.com https://brunhild.challenges.cloudflare.com https://*.alg13.dnstest.challenges.cloudflare.com https://*.mldsa44.dnstest.challenges.cloudflare.com https://dnstest.dev https://ca1.cloudflarecaptcha.com https://ca2.cloudflarecaptcha.com",
+      "frame-src 'self' blob: data: https://challenges.cloudflare.com",
       "worker-src 'self' blob:",
-      "media-src 'self' blob:",
-      "object-src 'none'",
+      "media-src 'self' blob: data:",
+      "object-src 'self' blob: data:",
+      "frame-ancestors 'self'",
     ].join("; "),
   },
 ];

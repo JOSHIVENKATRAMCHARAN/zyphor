@@ -581,7 +581,23 @@ export default function Home() {
                           <audio src={item.url} controls style={{ width: "100%" }} />
                         )}
                         {item.kind === "pdf" && (
-                          <iframe title={`PDF Preview ${item.file.name}`} src={item.url} style={{ width: "100%", height: "280px", border: "none", borderRadius: "8px" }} />
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                            <iframe
+                              title={`PDF Preview ${item.file.name}`}
+                              src={`${item.url}#toolbar=0`}
+                              style={{ width: "100%", height: "280px", border: "none", borderRadius: "8px", background: "rgba(0,0,0,0.3)" }}
+                            />
+                            <div style={{ textAlign: "right" }}>
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: "0.75rem", color: "var(--accent-blue)", textDecoration: "underline" }}
+                              >
+                                Open PDF in new tab
+                              </a>
+                            </div>
+                          </div>
                         )}
                       </div>
                     ))}
