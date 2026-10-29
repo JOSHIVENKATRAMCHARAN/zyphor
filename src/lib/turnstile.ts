@@ -19,9 +19,9 @@ export async function verifyTurnstile(token: unknown, request?: NextRequest): Pr
   if (!shouldEnforceTurnstile()) return true;
   if (typeof token !== "string" || token.length === 0 || token.length > 4096) return false;
 
-  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const secret = process.env.TURNSTILE_SECRET_KEY || process.env.TURNSTILE_SECRET;
   if (!secret) {
-    console.error("TURNSTILE_SECRET_KEY is missing; refusing protected requests.");
+    console.error("TURNSTILE_SECRET_KEY / TURNSTILE_SECRET is missing; refusing protected requests.");
     return false;
   }
 
@@ -39,8 +39,20 @@ export async function verifyTurnstile(token: unknown, request?: NextRequest): Pr
     if (!response.ok) return false;
 
     const result = await response.json() as TurnstileResponse;
-    const expectedHostname = process.env.TURNSTILE_EXPECTED_HOSTNAME;
-    return Boolean(result.success) && (!expectedHostname || result.hostname === expectedHostname);
+    if (!result.success) return false;
+
+    const expectedHostname = process.env.TURNSTILE_EXPECTED_HOSTNAME?.trim().toLowerCase();
+    const hostnames = process.env.TURNSTILE_HOSTNAMES
+      ? process.env.TURNSTILE_HOSTNAMES.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean)
+      : expectedHostname
+      ? [expectedHostname]
+      : [];
+
+    if (hostnames.length > 0 && result.hostname) {
+      return hostnames.includes(result.hostname.toLowerCase());
+    }
+
+    return true;
   } catch (error) {
     console.error("Turnstile verification failed:", error);
     return false;

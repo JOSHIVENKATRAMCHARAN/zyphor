@@ -668,7 +668,7 @@ export default function Home() {
               {TURNSTILE_ENABLED && user && (
                 <div style={{ display: "flex", justifyContent: "center", minHeight: "65px" }}>
                   <Turnstile
-                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAAFrUwteEs64_zkZa"}
                     onSuccess={setTurnstileToken}
                     onExpire={() => setTurnstileToken(null)}
                     onError={() => setTurnstileToken(null)}
