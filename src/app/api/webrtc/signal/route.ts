@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
     const lastId = lastIdRaw && /^\d{1,20}$/.test(lastIdRaw) ? BigInt(lastIdRaw) : BigInt(0);
 
     const ip = getClientIp(req);
-    const allowed = await checkRateLimit(`${ip}:${channelId}`, "webrtc_signal_get", 600, 5);
+    const allowed = await checkRateLimit(`${ip}:${channelId}`, "webrtc_signal_get", 1800, 5);
     if (!allowed) {
       return noStoreJson({ error: "Rate limit exceeded" }, { status: 429 });
     }

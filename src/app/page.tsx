@@ -200,7 +200,7 @@ export default function Home() {
       // 6. Start polling for Answer and receiver's ICE candidates
       let lastPollId = 0;
       const pollInterval = setInterval(async () => {
-        if (pc.signalingState === "closed") {
+        if (pc.signalingState === "closed" || pc.connectionState === "connected" || pc.iceConnectionState === "connected") {
           clearInterval(pollInterval);
           return;
         }

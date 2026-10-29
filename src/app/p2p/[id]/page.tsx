@@ -135,7 +135,7 @@ export default function P2PReceiver() {
     };
 
     const pollInterval = setInterval(() => {
-       if (pc.signalingState === "closed" || downloadUrl || error) {
+       if (pc.signalingState === "closed" || pc.connectionState === "connected" || pc.iceConnectionState === "connected" || downloadUrl || error) {
          clearInterval(pollInterval);
          return;
        }

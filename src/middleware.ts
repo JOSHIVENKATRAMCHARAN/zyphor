@@ -87,8 +87,9 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/") && !isNextAuthRoute) {
-    const isPublicTransfer = pathname.startsWith("/api/download/") || pathname === "/api/webrtc/signal";
-    const limit = isPublicTransfer ? 180 : SAFE_METHODS.has(method) ? 300 : 120;
+    const isWebrtcPoll = pathname === "/api/webrtc/signal" && method === "GET";
+    const isPublicTransfer = pathname.startsWith("/api/download/");
+    const limit = isWebrtcPoll ? 1500 : isPublicTransfer ? 600 : SAFE_METHODS.has(method) ? 300 : 120;
     const key = `${clientIp(request)}:${method}:${pathname}`;
     if (isRateLimited(key, limit, 5 * 60_000)) {
       return NextResponse.json(
