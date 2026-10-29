@@ -8,7 +8,7 @@ import { encryptFile } from "@/lib/crypto";
 import { generateMemorablePassphrase } from "@/lib/words";
 import { withCsrfHeaders } from "@/lib/csrf-client";
 import SiteFooter from "@/components/SiteFooter";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 // Define the available password modes
 type PasswordMode = "auto" | "random" | "memorable" | "custom" | "webrtc";
@@ -64,6 +64,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const [isWebrtcConnecting, setIsWebrtcConnecting] = useState(false);
   const [webrtcStatus, setWebrtcStatus] = useState("");
@@ -399,12 +400,13 @@ export default function Home() {
       } else {
         throw new Error(data.error || "Upload failed. Please try again.");
       }
-      setTurnstileToken(null);
     } catch (err) {
       console.error(err);
       alert("Upload failed. " + err);
     } finally {
       setUploading(false);
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -668,6 +670,7 @@ export default function Home() {
               {TURNSTILE_ENABLED && user && (
                 <div style={{ display: "flex", justifyContent: "center", minHeight: "65px" }}>
                   <Turnstile
+                    ref={turnstileRef}
                     siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAAFrUwteEs64_zkZa"}
                     onSuccess={setTurnstileToken}
                     onExpire={() => setTurnstileToken(null)}
