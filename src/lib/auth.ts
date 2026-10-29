@@ -10,6 +10,14 @@ import { isValidEmail, normalizeEmail } from "@/lib/security";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { databaseUnavailableMessage, isPrismaDatabaseConnectivityError, isPrismaSchemaMissingError, schemaMissingMessage } from "@/lib/prisma-errors";
 
+if (
+  process.env.VERCEL_URL &&
+  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
+) {
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  process.env.NEXTAUTH_URL = `https://${host}`;
+}
+
 function sanitizeDisplayName(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const value = input.trim().slice(0, 80);
@@ -266,7 +274,28 @@ export const authOptions: AuthOptions = {
         }
       }
       return session;
-    }
+    },
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      try {
+        const parsedUrl = new URL(url);
+        const parsedBase = new URL(baseUrl);
+        if (parsedUrl.origin === parsedBase.origin) {
+          return url;
+        }
+        if (
+          parsedUrl.hostname.endsWith(".vercel.app") ||
+          parsedUrl.hostname.includes("zyphor")
+        ) {
+          return url;
+        }
+      } catch {
+        // Fall back to baseUrl
+      }
+      return baseUrl;
+    },
   },
   session: {
     strategy: "jwt",
