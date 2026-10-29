@@ -123,20 +123,46 @@ function createPrismaClient() {
 }
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  prismaHostLogged: boolean | undefined
+  prisma: PrismaClient | undefined;
+  prismaHostLogged: boolean | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+let cachedPrisma: PrismaClient | undefined = globalForPrisma.prisma;
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+export function getPrismaClient(): PrismaClient {
+  if (cachedPrisma) {
+    return cachedPrisma;
+  }
+  if (globalForPrisma.prisma) {
+    cachedPrisma = globalForPrisma.prisma;
+    return cachedPrisma;
+  }
 
-  if (!globalForPrisma.prismaHostLogged) {
+  cachedPrisma = createPrismaClient();
+  globalForPrisma.prisma = cachedPrisma;
+
+  if (process.env.NODE_ENV !== "production" && !globalForPrisma.prismaHostLogged) {
     const dotEnvValue = readDatabaseUrlFromDotEnv() || "";
     const envValue = process.env.DATABASE_URL?.trim() || "";
     const chosen = dotEnvValue || envValue;
     console.warn(`[db] Active Prisma target=${getSafeTarget(chosen)} source=${dotEnvValue ? ".env" : "process.env"}`);
     globalForPrisma.prismaHostLogged = true;
   }
+
+  return cachedPrisma;
 }
+
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    if (prop === "then" || prop === "$$typeof") {
+      return undefined;
+    }
+    const client = getPrismaClient();
+    const value = Reflect.get(client, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
+  },
+});
+
