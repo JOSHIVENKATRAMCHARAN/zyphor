@@ -3,6 +3,15 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import fs from "fs";
 import path from "path";
 
+const DB_ENV_KEYS = [
+  "DATABASE_URL",
+  "STORAGE_DATABASE_URL_POOLED",
+  "STORAGE_DATABASE_URL",
+  "STORAGE_PRISMA_DATABASE_URL",
+  "STORAGE_POSTGRES_URL",
+  "POSTGRES_URL",
+];
+
 function readDatabaseUrlFromDotEnv(): string | null {
   if (process.env.NODE_ENV === "production") return null;
 
@@ -11,6 +20,7 @@ function readDatabaseUrlFromDotEnv(): string | null {
     if (!fs.existsSync(envPath)) return null;
 
     const envContent = fs.readFileSync(envPath, "utf8");
+    const parsed: Record<string, string> = {};
     for (const line of envContent.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
@@ -20,9 +30,11 @@ function readDatabaseUrlFromDotEnv(): string | null {
 
       const key = trimmed.slice(0, idx).trim();
       const rawValue = trimmed.slice(idx + 1).trim();
-      if (key === "DATABASE_URL") {
-        return rawValue.replace(/^"(.*)"$/, "$1").trim();
-      }
+      parsed[key] = rawValue.replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim();
+    }
+
+    for (const key of DB_ENV_KEYS) {
+      if (parsed[key]) return parsed[key];
     }
   } catch {
     // Ignore and fall back to process env
@@ -41,7 +53,14 @@ function getSafeTarget(value: string): string {
 }
 
 function getConnectionString(): string {
-  const envValue = process.env.DATABASE_URL?.trim() || "";
+  let envValue = "";
+  for (const key of DB_ENV_KEYS) {
+    if (process.env[key]?.trim()) {
+      envValue = process.env[key]!.trim();
+      break;
+    }
+  }
+
   const dotEnvValue = readDatabaseUrlFromDotEnv() || "";
   const value = dotEnvValue || envValue;
 
@@ -56,7 +75,7 @@ function getConnectionString(): string {
   }
 
   if (value.includes("db.your-project-ref.supabase.co")) {
-    throw new Error("DATABASE_URL is still a placeholder. Replace it with your real Supabase Postgres connection string.");
+    throw new Error("DATABASE_URL is still a placeholder. Replace it with your real Supabase or Prisma Postgres connection string.");
   }
 
   return value;
