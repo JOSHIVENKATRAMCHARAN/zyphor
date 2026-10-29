@@ -12,11 +12,11 @@ import {
   prismaClientOutOfSyncMessage,
 } from '@/lib/prisma-errors';
 import {
-  assertSupabaseStorageConfigured,
-  deleteSupabaseObject,
-  isSupabaseStorageError,
-  uploadSupabaseObject,
-} from '@/lib/supabase-storage';
+  assertStorageConfigured,
+  deleteObject,
+  isStorageError,
+  uploadObject,
+} from '@/lib/postgres-storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -123,6 +123,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verify storage is available (no-op for Postgres storage, kept for compatibility)
+    try {
+      assertStorageConfigured();
+    } catch (storageError) {
+      console.error("Storage is not configured:", storageError);
+      const message = isStorageError(storageError) ? storageError.message : "Storage unavailable.";
+      const status = isStorageError(storageError) ? storageError.status : 503;
+      return noStoreJson({ success: false, error: message }, { status });
+    }
+
     await prisma.link.create({
       data: {
         id: linkId,
@@ -134,20 +144,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    try {
-      assertSupabaseStorageConfigured();
-    } catch (storageError) {
-      console.error("Storage is not configured:", storageError);
-      const message = isSupabaseStorageError(storageError)
-        ? storageError.message
-        : "Storage is not configured. Set SUPABASE_STORAGE_BUCKET and Supabase credentials.";
-      const status = isSupabaseStorageError(storageError) ? storageError.status : 503;
-      return noStoreJson(
-        { success: false, error: message },
-        { status }
-      );
-    }
-    const uploadedPaths: string[] = [];
+    const uploadedFileIds: string[] = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -156,34 +153,29 @@ export async function POST(request: NextRequest) {
         const salt = salts[i];
         const iv = ivs[i];
         const originalName = (originalNames[i] || file.name || 'encrypted-file').slice(0, 255);
-        
-        const storagePath = `uploads/${fileId}`;
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        await uploadSupabaseObject(storagePath, buffer, 'application/octet-stream');
-        uploadedPaths.push(storagePath);
 
+        // Create the DB row first (data will be written in the update inside uploadObject)
         await prisma.file.create({
           data: {
             id: fileId,
             link_id: linkId,
             original_name: originalName,
             size: file.size,
-            storage_path: storagePath,
-            salt: salt,
-            iv: iv
+            storage_path: fileId, // use fileId as the storage reference
+            salt,
+            iv,
           }
         });
+
+        const arrayBuffer = await file.arrayBuffer();
+        await uploadObject(fileId, new Uint8Array(arrayBuffer));
+        uploadedFileIds.push(fileId);
       }
     } catch (uploadError) {
-      for (const path of uploadedPaths) {
-        try {
-          await deleteSupabaseObject(path);
-        } catch {
-          // best-effort cleanup
-        }
+      // Clean up uploaded blobs (best-effort)
+      for (const fid of uploadedFileIds) {
+        await deleteObject(fid).catch(() => {});
       }
-
       await prisma.link.delete({ where: { id: linkId } }).catch(() => {});
       throw uploadError;
     }
@@ -197,11 +189,8 @@ export async function POST(request: NextRequest) {
     if (isPrismaDatabaseConnectivityError(error)) {
       return noStoreJson({ success: false, error: databaseUnavailableMessage('Upload service') }, { status: 503 });
     }
-    if (isSupabaseStorageError(error)) {
-      return noStoreJson(
-        { success: false, error: error.message },
-        { status: error.status || 503 }
-      );
+    if (isStorageError(error)) {
+      return noStoreJson({ success: false, error: error.message }, { status: error.status || 503 });
     }
     return noStoreJson({ success: false, error: 'Internal server error' }, { status: 500 });
   }

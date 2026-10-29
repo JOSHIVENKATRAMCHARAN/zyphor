@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getClientIp, isSameOrigin, isValidLinkId } from '@/lib/security';
 import { isPrismaDatabaseConnectivityError } from '@/lib/prisma-errors';
-import { deleteSupabaseObject, isSupabaseStorageError } from '@/lib/supabase-storage';
+import { deleteObject, isStorageError } from '@/lib/postgres-storage';
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type') || '';
@@ -57,16 +57,15 @@ export async function POST(request: NextRequest) {
       return respond(403, { error: 'Forbidden' });
     }
 
-    // Delete files from file system transactionally
+    // Clear blob data from each file (best-effort; cascade will remove the rows)
     let allDeleted = true;
     for (const file of link.files) {
       try {
-        if (file.storage_path) {
-          await deleteSupabaseObject(file.storage_path);
-        }
+        const storageRef = file.storage_path || file.id;
+        await deleteObject(storageRef);
       } catch (err) {
-        if (isSupabaseStorageError(err) && err.status === 404) continue;
-        console.error('Failed to delete file from Supabase Storage:', err);
+        if (isStorageError(err) && err.status === 404) continue;
+        console.error('Failed to clear file blob from Postgres Storage:', err);
         allDeleted = false;
       }
     }
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (isPrismaDatabaseConnectivityError(error)) {
       return respond(503, { error: 'Database unavailable' }, '/dashboard?error=db_unavailable');
     }
-    if (isSupabaseStorageError(error)) {
+    if (isStorageError(error)) {
       return respond(error.status || 500, { error: error.message });
     }
     return respond(500, { error: 'Internal server error' });

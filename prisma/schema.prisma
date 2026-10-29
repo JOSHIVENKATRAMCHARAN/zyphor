@@ -114,7 +114,8 @@ model File {
   link_id       String
   original_name String
   size          Int
-  storage_path  String
+  storage_path  String   @default("")
+  data          Bytes?
   salt          String   @db.Text
   iv            String   @db.Text
 

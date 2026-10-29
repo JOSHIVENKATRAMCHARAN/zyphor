@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 
 import { Providers } from "./providers";
 import CookieConsentGate from "@/components/CookieConsentGate";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export default function RootLayout({
   children,
@@ -23,6 +24,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <CookieConsentGate />
+          <SpeedInsights />
         </Providers>
       </body>
     </html>

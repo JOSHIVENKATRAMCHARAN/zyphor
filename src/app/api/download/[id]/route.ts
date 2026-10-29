@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getClientIp, isValidLinkId, isValidUuid, noStoreJson } from '@/lib/security';
 import { databaseUnavailableMessage, isPrismaDatabaseConnectivityError } from '@/lib/prisma-errors';
-import { downloadSupabaseObject, isSupabaseStorageError } from '@/lib/supabase-storage';
+import { downloadObject, isStorageError } from '@/lib/postgres-storage';
 
 type DownloadFileRow = {
   id: string;
@@ -95,7 +95,9 @@ export async function GET(
       return noStoreJson({ error: 'File not found in link' }, { status: 404 });
     }
 
-    const storageResponse = await downloadSupabaseObject(file.storage_path);
+    // storage_path holds the fileId — use it to fetch from Postgres
+    const storageFileId = file.storage_path || file.id;
+    const storageResponse = await downloadObject(storageFileId);
     if (!storageResponse.body) {
       throw new Error('Downloaded storage object has no response body.');
     }
@@ -141,7 +143,7 @@ export async function GET(
     if (isPrismaDatabaseConnectivityError(error)) {
       return noStoreJson({ error: databaseUnavailableMessage('Download service') }, { status: 503 });
     }
-    if (isSupabaseStorageError(error)) {
+    if (isStorageError(error)) {
       return noStoreJson({ error: error.message }, { status: error.status || 500 });
     }
     return noStoreJson({ error: 'Internal server error' }, { status: 500 });
